@@ -83,7 +83,36 @@ public:
         return result;
     }
 
-private:
+    vector<Interval> queryMW_H(int start, int end, int k) {
+        priority_queue<Interval, vector<Interval>, CompareWeight> minHeap;
+        priority_queue<ITNode*, vector<ITNode*>, CompareMW> MWHeap;
+
+        queryMW_H(root, start, end, k, minHeap, MWHeap);      
+
+        while(!MWHeap.empty()){
+            auto target = MWHeap.top();
+            if((int)minHeap.size() < k || target->MW > minHeap.top().weight)       
+                queryMW_H(MWHeap.top(), start, end, k, minHeap, MWHeap);
+            MWHeap.pop();
+        }
+
+        vector<Interval> result;
+        while (!minHeap.empty()) {
+            result.push_back(minHeap.top());
+            minHeap.pop();
+        }
+        reverse(result.begin(), result.end());
+        return result;
+    }
+
+private: 
+
+    struct CompareMW {
+        bool operator()(const ITNode* a, const ITNode* b) {
+            return a->MW < b->MW;
+        }
+    };
+
     ITNode* buildIT(const vector<Interval>& StartList, const vector<Interval>& EndList) {
         if (StartList.empty()) {
             return nullptr;
@@ -179,7 +208,8 @@ private:
         return result;
     }
 
-    void query(ITNode* node, int query_start, int query_end, int k, priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
+    void query(ITNode* node, int query_start, int query_end, int k,
+                    priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
         int targetIndex;
         
         if (!node) return;
@@ -248,8 +278,8 @@ private:
         return;
     }
 
-
-    void queryMW(ITNode* node, int query_start, int query_end, int k, priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
+    void queryMW(ITNode* node, int query_start, int query_end, int k,
+                    priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
         int targetIndex;
         
         if (!node) return;
@@ -272,7 +302,7 @@ private:
             }                
             
             if (node->left && ((int)minHeap.size() < k || node->left->MW > minHeap.top().weight)) {
-                query(node->left, query_start, query_end, k, minHeap);
+                queryMW(node->left, query_start, query_end, k, minHeap);
             }
 
         } else if (node->center < query_start) {
@@ -318,6 +348,76 @@ private:
         return;
     }
 
+    void queryMW_H(ITNode* node, int query_start, int query_end, int k,
+                    priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap,
+                    priority_queue<ITNode*, vector<ITNode*>, CompareMW>& MWHeap) {
+        int targetIndex;
+        
+        if (!node) return;
+
+        if (query_end < node->center) {
+
+            targetIndex = findUpperBound(node->intervalsStartList, query_end);
+
+            if (targetIndex != -1) {
+                for (int i = 0; i <= targetIndex; i++) {
+                    Interval interval = node->intervalsStartList[i];
+
+                    if ((int)minHeap.size() < k) {
+                        minHeap.push(interval);
+                    } else if (interval.weight > minHeap.top().weight) {                
+                        minHeap.pop();
+                        minHeap.push(interval);
+                    }
+                }
+            }                
+            
+            if (node->left && ((int)minHeap.size() < k || node->left->MW > minHeap.top().weight)) {
+                MWHeap.push(node->left);
+            }
+
+        } else if (node->center < query_start) {
+
+            targetIndex = findLowerBound(node->intervalsEndList, query_start);
+
+            if (targetIndex != -1) {
+                for (int i = 0; i <= targetIndex; i++) {
+                    Interval interval = node->intervalsEndList[i];
+
+                    if ((int)minHeap.size() < k) {
+                        minHeap.push(interval);
+                    } else if (interval.weight > minHeap.top().weight) {                
+                        minHeap.pop();
+                        minHeap.push(interval);
+                    }
+                }
+            }
+
+            if (node->right && ((int)minHeap.size() < k || node->right->MW > minHeap.top().weight)) {
+                MWHeap.push(node->right);
+            }
+
+        } else {
+
+            for (auto interval : node->intervalsStartList) {
+                if ((int)minHeap.size() < k) {
+                    minHeap.push(interval);
+                } else if (interval.weight > minHeap.top().weight) {                
+                    minHeap.pop();
+                    minHeap.push(interval);
+                }
+            }
+
+            if (node->left && ((int)minHeap.size() < k || node->left->MW > minHeap.top().weight)) {
+                MWHeap.push(node->left);
+            }
+            if (node->right && ((int)minHeap.size() < k || node->right->MW > minHeap.top().weight)) {
+                MWHeap.push(node->right);
+            }
+        }
+
+        return;
+    }
 
 };
 

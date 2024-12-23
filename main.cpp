@@ -27,10 +27,11 @@ int BUCKET_SIZE;
 int bucketnum;
 
 int MEMCHECK = 0;
+int RunningCheck = 0;
 
-int isWeighted = 1;
+int isWeighted = 0;
 ifstream file("/home/lee/top-k/samples/RENFE.csv");
-ofstream outfile("R_RENFE.csv");
+ofstream outfile("/home/lee/top-k/Results_RENFE.csv");
 
 RunSettings settings;
 
@@ -261,7 +262,7 @@ vector<vector<Interval>> QueryBruteForce(vector<Interval>& intervals, const vect
     return bruteforceResults;
 }
 
-vector<vector<Interval>> QueryITree(IT& ITree, const vector<Interval>& queries, int k) {
+vector<vector<Interval>> QueryIT(IT& ITree, const vector<Interval>& queries, int k) {
     typedef chrono::high_resolution_clock Clock;
     typedef chrono::milliseconds milliseconds;
   
@@ -283,7 +284,7 @@ vector<vector<Interval>> QueryITree(IT& ITree, const vector<Interval>& queries, 
     return ITResults;
 }
 
-vector<vector<Interval>> QueryITreeMW(IT& ITree, const vector<Interval>& queries, int k) {
+vector<vector<Interval>> QueryITMW(IT& ITree, const vector<Interval>& queries, int k) {
     typedef chrono::high_resolution_clock Clock;
     typedef chrono::milliseconds milliseconds;
   
@@ -305,7 +306,29 @@ vector<vector<Interval>> QueryITreeMW(IT& ITree, const vector<Interval>& queries
     return ITMWResults;
 }
 
-vector<vector<Interval>> QueryWITree(WIT& WITree, const vector<Interval>& queries, int k) {
+vector<vector<Interval>> QueryITMW_H(IT& ITree, const vector<Interval>& queries, int k) {
+    typedef chrono::high_resolution_clock Clock;
+    typedef chrono::milliseconds milliseconds;
+  
+    Clock::time_point t0, t1;
+    vector<vector<Interval>> ITMW_HResults;
+
+    t0 = Clock::now();
+
+    for (const auto& q : queries) {
+        auto results = ITree.queryMW_H(q.start, q.end, k);
+        sort(results.begin(), results.end(), compareIntervals);  // 정렬 추가
+        ITMW_HResults.push_back(results);
+    }
+
+    t1 = Clock::now();
+
+    milliseconds ms1 = chrono::duration_cast<milliseconds>(t1 - t0);
+    outfile << ms1.count() << ",";
+    return ITMW_HResults;
+}
+
+vector<vector<Interval>> QueryWIT(WIT& WITree, const vector<Interval>& queries, int k) {
     typedef chrono::high_resolution_clock Clock;
     typedef chrono::milliseconds milliseconds;
   
@@ -315,7 +338,7 @@ vector<vector<Interval>> QueryWITree(WIT& WITree, const vector<Interval>& querie
     t0 = Clock::now();
 
     for (const auto& q : queries) {
-        auto results = WITree.queryTopK2(q.start, q.end, k);
+        auto results = WITree.queryTopK(q.start, q.end, k);
         sort(results.begin(), results.end(), compareIntervals);  // 정렬 추가
         WITResults.push_back(results);
     }
@@ -328,7 +351,30 @@ vector<vector<Interval>> QueryWITree(WIT& WITree, const vector<Interval>& querie
     return WITResults;    
 }
 
-vector<vector<Interval>> QueryWITreeBucket(vector<WIT>& WIForest, const vector<Interval>& queries, int k) {
+vector<vector<Interval>> QueryWIT_H(WIT& WITree, const vector<Interval>& queries, int k) {
+    typedef chrono::high_resolution_clock Clock;
+    typedef chrono::milliseconds milliseconds;
+  
+    Clock::time_point t0, t1;
+    vector<vector<Interval>> WIT_HResults;
+
+    t0 = Clock::now();
+
+    for (const auto& q : queries) {
+        auto results = WITree.queryTopK_H(q.start, q.end, k);
+        sort(results.begin(), results.end(), compareIntervals);  // 정렬 추가
+        WIT_HResults.push_back(results);
+    }
+
+    t1 = Clock::now();
+
+    milliseconds ms1 = chrono::duration_cast<milliseconds>(t1 - t0);
+    
+    outfile << ms1.count() << "," ;
+    return WIT_HResults;    
+}
+
+vector<vector<Interval>> QueryWITB(vector<WIT>& WIForest, const vector<Interval>& queries, int k) {
     typedef chrono::high_resolution_clock Clock;
     typedef chrono::milliseconds milliseconds;
   
@@ -341,7 +387,7 @@ vector<vector<Interval>> QueryWITreeBucket(vector<WIT>& WIForest, const vector<I
         vector<Interval> combinedResults;
         int bucketIndex = 0, kk = k;
         do {
-            auto results = WIForest[bucketIndex++].queryTopK2(q.start, q.end, kk);
+            auto results = WIForest[bucketIndex++].queryTopK(q.start, q.end, kk);
             combinedResults.insert(combinedResults.end(), std::make_move_iterator(results.begin()), std::make_move_iterator(results.end()));
             kk -= results.size();
         } while (bucketIndex < bucketnum && kk > 0);
@@ -353,6 +399,33 @@ vector<vector<Interval>> QueryWITreeBucket(vector<WIT>& WIForest, const vector<I
     milliseconds ms1 = chrono::duration_cast<milliseconds>(t1 - t0);
     outfile << ms1.count() << "," ;
     return WITBResults;
+}
+
+vector<vector<Interval>> QueryWITB_H(vector<WIT>& WIForest, const vector<Interval>& queries, int k) {
+    typedef chrono::high_resolution_clock Clock;
+    typedef chrono::milliseconds milliseconds;
+  
+    Clock::time_point t0, t1;
+    vector<vector<Interval>> WITB_HResults;
+
+    t0 = Clock::now();
+
+    for (const auto& q : queries) {
+        vector<Interval> combinedResults;
+        int bucketIndex = 0, kk = k;
+        do {
+            auto results = WIForest[bucketIndex++].queryTopK_H(q.start, q.end, kk);
+            combinedResults.insert(combinedResults.end(), std::make_move_iterator(results.begin()), std::make_move_iterator(results.end()));
+            kk -= results.size();
+        } while (bucketIndex < bucketnum && kk > 0);
+        WITB_HResults.push_back(combinedResults);
+    }
+
+    t1 = Clock::now();
+
+    milliseconds ms1 = chrono::duration_cast<milliseconds>(t1 - t0);
+    outfile << ms1.count() << "," ;
+    return WITB_HResults;
 }
 
 vector<vector<Interval>> QuerySAIT(SAIT& SAITree, const vector<Interval>& queries, int k) {
@@ -444,61 +517,92 @@ void TEST(int k, vector<Interval>& intervals,
             SAIT& SAITree) {
 
     auto BFResults      = QueryBruteForce(sortedIntervals, queries, k);
-    auto ITResults      = QueryITree(ITree, queries, k);
-    auto ITMWResults    = QueryITreeMW(ITree, queries, k);
+    if(RunningCheck == 1) cout << "BF query finished" << endl;
+    auto ITResults      = QueryIT(ITree, queries, k);
+    if(RunningCheck == 1) cout << "IT query finished" << endl;
+    auto ITMWResults    = QueryITMW(ITree, queries, k);
+    if(RunningCheck == 1) cout << "ITMW query finished" << endl;
+    auto ITMW_HResults  = QueryITMW_H(ITree, queries, k);
+    if(RunningCheck == 1) cout << "ITMW+H query finished" << endl;
     auto HINTResults    = QueryHINT(queries, k);
-    auto WITResults     = QueryWITree(WITree, queries, k);   
-    auto WITBResults    = QueryWITreeBucket(WIForest, queries, k);   
-    auto SAITResults    = QuerySAIT(SAITree, queries, k);   
+    if(RunningCheck == 1) cout << "HINT query finished" << endl;
+    auto WITResults     = QueryWIT(WITree, queries, k);   
+    if(RunningCheck == 1) cout << "WIT query finished" << endl;
+    auto WIT_HResults   = QueryWIT_H(WITree, queries, k);   
+    if(RunningCheck == 1) cout << "WIT+H query finished" << endl;
+    auto WITBResults    = QueryWITB(WIForest, queries, k);   
+    if(RunningCheck == 1) cout << "WITB query finished" << endl;
+    auto WITB_HResults  = QueryWITB_H(WIForest, queries, k); 
+    if(RunningCheck == 1) cout << "WITB+H query finished" << endl;
+    auto SAITResults    = QuerySAIT(SAITree, queries, k);  
+    if(RunningCheck == 1) cout << "SAIT query finished" << endl;
 
     for (size_t i = 0; i < queries.size(); ++i) {
-        auto& BFTopK = BFResults[i];
-        auto& ITTopK = ITResults[i];
-        auto& ITMWTopK = ITMWResults[i];
-        auto& HINTTopK = HINTResults[i];
-        auto& WITTopK = WITResults[i];
-        auto& WITBTopK = WITBResults[i];
-        auto& SAITTopK = SAITResults[i];
+        auto& BFTopK        = BFResults[i];
+        auto& ITTopK        = ITResults[i];
+        auto& ITMWTopK      = ITMWResults[i];
+        auto& ITMW_HTopK    = ITMW_HResults[i];
+        auto& HINTTopK      = HINTResults[i];
+        auto& WITTopK       = WITResults[i];
+        auto& WITBTopK      = WITBResults[i];
+        auto& WIT_HTopK     = WIT_HResults[i];
+        auto& WITB_HTopK    = WITB_HResults[i];
+        auto& SAITTopK      = SAITResults[i];
 
         int actualk = (int)BFResults[i].size();
 
         ITTopK.resize(actualk);
         ITMWTopK.resize(actualk);
+        ITMW_HTopK.resize(actualk);
         HINTTopK.resize(actualk);
         WITTopK.resize(actualk);
         WITBTopK.resize(actualk);
+        WIT_HTopK.resize(actualk);
+        WITB_HTopK.resize(actualk);
         SAITTopK.resize(actualk);
 
         sort(ITTopK.begin(), ITTopK.end(), compareIntervals);
         sort(ITMWTopK.begin(), ITMWTopK.end(), compareIntervals);
+        sort(ITMW_HTopK.begin(), ITMW_HTopK.end(), compareIntervals);
         sort(HINTTopK.begin(), HINTTopK.end(), compareIntervals);
         sort(WITTopK.begin(), WITTopK.end(), compareIntervals);
         sort(WITBTopK.begin(), WITBTopK.end(), compareIntervals);
+        sort(WIT_HTopK.begin(), WIT_HTopK.end(), compareIntervals);
+        sort(WITB_HTopK.begin(), WITB_HTopK.end(), compareIntervals);
         sort(SAITTopK.begin(), SAITTopK.end(), compareIntervals);
          
         for (int j = 0; j < actualk; ++j) {
             auto weight1 = BFTopK[j].weight;
             auto weight2 = ITTopK[j].weight;
             auto weight3 = ITMWTopK[j].weight;
-            auto weight4 = HINTTopK[j].weight;
-            auto weight5 = WITTopK[j].weight;
-            auto weight6 = WITBTopK[j].weight;
-            auto weight7 = SAITTopK[j].weight;
+            auto weight4 = ITMW_HTopK[j].weight;
+            auto weight5 = HINTTopK[j].weight;
+            auto weight6 = WITTopK[j].weight;
+            auto weight7 = WITBTopK[j].weight;
+            auto weight8 = WIT_HTopK[j].weight;
+            auto weight9 = WITB_HTopK[j].weight;
+            auto weight10 = SAITTopK[j].weight;
 
             if(weight1 != weight2 || 
                weight1 != weight3 || 
                weight1 != weight4 || 
                weight1 != weight5 || 
                weight1 != weight6 || 
-               weight1 != weight7) {
+               weight1 != weight7 || 
+               weight1 != weight8 || 
+               weight1 != weight9 || 
+               weight1 != weight10) {
 
                 cout << queries[i] << endl;                
                 cout << BFTopK << endl;
                 cout << ITTopK << endl;
                 cout << ITMWTopK << endl;
+                cout << ITMW_HTopK << endl;
                 cout << HINTTopK << endl;
                 cout << WITTopK << endl;
                 cout << WITBTopK << endl;
+                cout << WIT_HTopK << endl;
+                cout << WITB_HTopK << endl;
                 cout << SAITTopK << endl;
             }
 
@@ -508,6 +612,9 @@ void TEST(int k, vector<Interval>& intervals,
             assert(weight1 == weight5);
             assert(weight1 == weight6);
             assert(weight1 == weight7);
+            assert(weight1 == weight8);
+            assert(weight1 == weight9);
+            assert(weight1 == weight10);
         }
     }
 }
@@ -516,7 +623,7 @@ int main() {
     settings.init();
     settings.method = "hint_m";
 
-    outfile << "n,k,m,BruteForce,IT,ITMW,HINTm,WIT,WIT+Bucket,SAIT" << endl;
+    outfile << "n,k,m,BruteForce,IT,ITMW,ITMW+H,HINTm,WIT,WITB,WIT+H,WITB+H,SAIT" << endl;
     outfile << "0,";
 
     vector<Interval> intervals;

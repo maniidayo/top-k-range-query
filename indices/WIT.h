@@ -12,8 +12,7 @@ struct WITNode {
     Interval interval;
     int min;
     int max;
-    int maxWeight;
-    vector<Interval> maxIntervals;
+    int MW;
     WITNode* left;
     WITNode* right;
     WITNode(const Interval& i)
@@ -21,8 +20,7 @@ struct WITNode {
         interval = i;
         min = i.start;
         max = i.end;
-        maxWeight = i.weight;
-        maxIntervals.push_back(i);
+        MW = i.weight;
         left = nullptr;
         right = nullptr;
     }
@@ -68,9 +66,9 @@ public:
         return result;
     }
 
-    vector<Interval> queryTopK1(int start, int end, int k) {
+    vector<Interval> queryTopK(int start, int end, int k) {
         priority_queue<Interval, vector<Interval>, CompareWeight> minHeap;
-        queryTopK1(root, start, end, k, minHeap);
+        queryTopK(root, start, end, k, minHeap);
 
         vector<Interval> result;
         while (!minHeap.empty()) {
@@ -81,9 +79,20 @@ public:
         return result;
     }
 
-    vector<Interval> queryTopK2(int start, int end, int k) {
-        priority_queue<Interval, vector<Interval>, CompareWeight> minHeap;
-        queryTopK2(root, start, end, k, minHeap);
+    vector<Interval> queryTopK_H(int start, int end, int k) {
+        priority_queue<Interval, vector<Interval>, CompareWeight> minHeap;        
+        priority_queue<WITNode*, vector<WITNode*>, CompareMW> MWHeap;
+        
+        queryTopK_H(root, start, end, k, minHeap, MWHeap);
+
+        while(!MWHeap.empty()){
+            auto target = MWHeap.top();
+            if(target->max >= start && target->min <= end){
+                if((int)minHeap.size() < k || target->MW > minHeap.top().weight)
+                    queryTopK_H(target, start, end, k, minHeap, MWHeap);
+            }
+            MWHeap.pop();
+        }
 
         vector<Interval> result;
         while (!minHeap.empty()) {
@@ -96,7 +105,13 @@ public:
 
 private:
     vector<Interval> roots;
-    WITNode* root = nullptr;
+    WITNode* root = nullptr;    
+
+    struct CompareMW {
+        bool operator()(const WITNode* a, const WITNode* b) {
+            return a->MW < b->MW;
+        }
+    };
 
     void build() {
         root = build(roots, 0, roots.size() - 1);
@@ -113,29 +128,23 @@ private:
         if (node->left) {            
             node->min = min(node->min, node->left->min);
             node->max = max(node->max, node->left->max);
-            if(node->maxWeight > node->left->maxWeight) {
-                // node->maxWeight = node->maxWeight;
-                // node->maxIntervals = node->maxIntervals;
-            } else if(node->maxWeight == node->left->maxWeight) {
-                // node->maxWeight = node->maxWeight;
-                node->maxIntervals.insert(node->maxIntervals.end(), node->left->maxIntervals.begin(), node->left->maxIntervals.end());
+            if(node->MW > node->left->MW) {
+                // node->MW = node->MW;
+            } else if(node->MW == node->left->MW) {
+                // node->MW = node->MW;=
             } else {
-                node->maxWeight = node->left->maxWeight;
-                node->maxIntervals = node->left->maxIntervals;                
+                node->MW = node->left->MW;      
             }
         }
         if (node->right) {           
             node->min = min(node->min, node->right->min);
             node->max = max(node->max, node->right->max);
-            if(node->maxWeight > node->right->maxWeight) {
-                // node->maxWeight = node->maxWeight;
-                // node->maxIntervals = node->maxIntervals;
-            } else if(node->maxWeight == node->right->maxWeight) {
-                // node->maxWeight = node->maxWeight;
-                node->maxIntervals.insert(node->maxIntervals.end(), node->right->maxIntervals.begin(), node->right->maxIntervals.end());
+            if(node->MW > node->right->MW) {
+                // node->MW = node->MW;
+            } else if(node->MW == node->right->MW) {
+                // node->MW = node->MW;
             } else {
-                node->maxWeight = node->right->maxWeight;
-                node->maxIntervals = node->right->maxIntervals;
+                node->MW = node->right->MW;
             }
         }
         return node;
@@ -156,7 +165,7 @@ private:
         }
     }
 
-    void queryTopK1(WITNode* node, int query_start, int query_end, int k, priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
+    void queryTopK(WITNode* node, int query_start, int query_end, int k, priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
         if (!node) {
             return;
         }
@@ -168,15 +177,17 @@ private:
                 minHeap.push(node->interval);
             }
         }
-        if (node->left && node->left->max >= query_start && node->left->min <= query_end) {
-            queryTopK1(node->left, query_start, query_end, k, minHeap);
+        if (node->left && node->left->max >= query_start && node->left->min <= query_end && ((int)minHeap.size() < k || node->left->MW > minHeap.top().weight)) {
+            queryTopK(node->left, query_start, query_end, k, minHeap);
         }
-        if (node->right && node->right->max >= query_start && node->right->min <= query_end) {
-            queryTopK1(node->right, query_start, query_end, k, minHeap);
+        if (node->right && node->right->max >= query_start && node->right->min <= query_end && ((int)minHeap.size() < k || node->right->MW > minHeap.top().weight)) {
+            queryTopK(node->right, query_start, query_end, k, minHeap);
         }
     }
 
-    void queryTopK2(WITNode* node, int query_start, int query_end, int k, priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap) {
+    void queryTopK_H(WITNode* node, int query_start, int query_end, int k,
+                        priority_queue<Interval, vector<Interval>, CompareWeight>& minHeap,                         
+                        priority_queue<WITNode*, vector<WITNode*>, CompareMW>& MWHeap) {
         if (!node) {
             return;
         }
@@ -188,11 +199,11 @@ private:
                 minHeap.push(node->interval);
             }
         }
-        if (node->left && node->left->max >= query_start && node->left->min <= query_end && ((int)minHeap.size() < k || node->left->maxWeight > minHeap.top().weight)) {
-            queryTopK2(node->left, query_start, query_end, k, minHeap);
+        if (node->left) {
+            MWHeap.push(node->left);
         }
-        if (node->right && node->right->max >= query_start && node->right->min <= query_end && ((int)minHeap.size() < k || node->right->maxWeight > minHeap.top().weight)) {
-            queryTopK2(node->right, query_start, query_end, k, minHeap);
+        if (node->right) {
+            MWHeap.push(node->right);
         }
     }
 

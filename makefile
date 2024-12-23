@@ -3,7 +3,7 @@ CFLAGS  = -O3 -mavx -std=c++17 -w
 LDFLAGS =
 
 
-SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp indices/1dgrid.cpp indices/hierarchicalindex.cpp indices/hint.cpp indices/hint_m.cpp indices/hint_m_subs+sort.cpp indices/Interval.h
+SOURCES = utils.cpp containers/relation.cpp containers/offsets_templates.cpp containers/offsets.cpp indices/hierarchicalindex.cpp indices/hint.cpp indices/hint_m.cpp indices/hint_m_subs+sort.cpp indices/Interval.h
 OBJECTS = $(SOURCES:.cpp=.o)
 
 main: $(OBJECTS)
