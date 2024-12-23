@@ -2,7 +2,7 @@
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++
 
-                    WIT & SAIT
+WIT & SAIT
 
 1. Select csv file in main.cpp.
 
