@@ -30,8 +30,8 @@ int MEMCHECK = 0;
 int RunningCheck = 0;
 
 int isWeighted = 0;
-ifstream file("/home/lee/top-k/samples/RENFE.csv");
-ofstream outfile("/home/lee/top-k/Results_RENFE.csv");
+ifstream file("/home/lee/top-k/samples/TAXIS.csv");
+ofstream outfile("/home/lee/top-k/Results_TAXIS.csv");
 
 RunSettings settings;
 
@@ -508,7 +508,7 @@ vector<vector<Interval>> QueryHINT(const vector<Interval>& queries, int k) {
 
 
 
-void TEST(int k, vector<Interval>& intervals,
+void TEST(int k,
             vector<Interval>& queries, 
             vector<Interval>& sortedIntervals,
             IT& ITree,
@@ -756,7 +756,7 @@ int main() {
         outfile << intervals.size() << ",";
         outfile << k << ",";
         outfile << m << ",";
-        TEST(k, intervals, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
+        TEST(k, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
         outfile << endl;
     }
 
@@ -778,7 +778,7 @@ int main() {
         outfile << intervals.size() << ",";
         outfile << k << ",";
         outfile << m << ",";
-        TEST(k, intervals, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
+        TEST(k, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
         outfile << endl;
     }
 
@@ -849,7 +849,7 @@ int main() {
         outfile << intervals_new.size() << ",";
         outfile << k << ",";
         outfile << m << ",";
-        TEST(k, intervals, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
+        TEST(k, queries, sortedIntervals, ITree, WITree, WIForest, SAITree);
         outfile << endl;
     }
   
